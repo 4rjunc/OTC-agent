@@ -1,0 +1,10 @@
+{
+  "name": "telegram-users-bot",
+  "version": "1.0.0",
+  "description": "A Telegram bot that displays users",
+  "main": "bot.js",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "node-telegram-bot-api": "^0.61.0"
+  }
+}
