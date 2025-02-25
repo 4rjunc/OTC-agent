@@ -1,20 +1,19 @@
-# OTC Agent
+# CROC: AI Agent For Secure Peer-to-Peer OTC Swaps on Avalanche
 
 <div align="center">
-<img src="./assets/banner.jpg"  alt="Bot Demo Screenshot" width="500" />
+<img src="./assets/banner.jpg"  alt="Bot Demo Screenshot" width="900" />
 </div>
 
-A Telegram bot built to facilitate peer-to-peer (P2P) token swaps between two users. The bot allows users to place orders, deposit assets, and execute swaps securely on the Avalanche Fuji testnet.
+## Overview
 
-## Features
+CROC is a Telegram-based AI Agent built to power secure, trustless OTC trades on Avalanche. When two traders lock in a deal, CROC steps in as the onchain escrow powerhouse**—holding assets tight and only executing swaps when both sides deliver. **Counterparty risk? Gone. Off-exchange trading? Smooth as a crocodile gliding through water.
 
-- **P2P Token Swaps**: Users can swap tokens like USDC and EURC with each other.
-- **Order Management**: Users place orders using the `/myorder` command, specifying their wallet address, token amounts, and desired tokens.
-- **Asset Tracking**: The bot monitors the blockchain for incoming transactions and confirms when assets are received.
-- **Swap Execution**: Once both users' assets are received, the bot executes the swap and sends the tokens to the respective wallets.
-- **Transparency**: Users can check the status of their swap using the `/info` command.
+## Capabilities
 
-## Prerequisites
+- 🐊 P2P Swaps – Locked-in trades, executed with precision.
+- 🔺 Avalanche Onchain – Every swap is transparent, final, and bulletproof.
+- 🤖 Trustless AI Escrow – Smart contract-controlled execution, no human intervention.
+- ⚡ Telegram-Powered – Fast, frictionless trading with simple bot commands.## Prerequisites
 
 Before running the bot, ensure you have the following:
 
@@ -28,8 +27,8 @@ Before running the bot, ensure you have the following:
 
 1. **Clone the Repository**:
    ```bash
-   git clone https://github.com/4rjunc/OTC-Agent.git
-   cd telegram-p2p-swap-bot
+   git clone https://github.com/4rjunc/agent-CROC.git
+   cd agent-CROC
    ```
 
 2. **Install Dependencies**:
