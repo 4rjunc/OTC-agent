@@ -18,9 +18,9 @@ async function getWalletTokenBalance(walletAddress) {
 }
 
 // Using an immediately invoked async function
-(async () => {
-  await getWalletTokenBalance("0x19f3b78038C070030e0Cf4953EDe53aF1f0CB00E");
-})();
+//(async () => {
+//  await getWalletTokenBalance("0x19f3b78038C070030e0Cf4953EDe53aF1f0CB00E");
+//})();
 //FIX:
 // node moralis.js =
 // [Function (anonymous)]

@@ -207,6 +207,116 @@ bot.onText(/\/info/, async (msg) => {
   const message = `Order Status: ${infoReport ? "✅ Valid" : "❌ Invalid"}`
 
   bot.sendMessage(chatId, message); bot.sendMessage(chatId, message);
+
+  const users = Object.keys(orderData);
+  const approvals = {};
+  users.forEach(userId => {
+    approvals[userId] = false;
+  });
+
+  // Store the approvals in your swapRequests map alongside the request data
+  swapRequests.set(chatId, {
+    orderData: orderData,
+    approvals: approvals,
+    users: users
+  });
+
+  // Send a message with approval buttons
+  sendApprovalButtons(chatId, users);
+});
+
+function sendApprovalButtons(chatId, users) {
+  const buttons = {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "Approve Swap", callback_data: "approve_swap" }],
+        [{ text: "Cancel", callback_data: "cancel_swap" }]
+      ]
+    }
+  };
+
+  bot.sendMessage(chatId, "Both users must approve this swap. Click the button below to approve:", buttons);
+}
+
+// Handle callback queries from inline buttons
+bot.on('callback_query', async (callbackQuery) => {
+  const msg = callbackQuery.message;
+  const chatId = msg.chat.id;
+  const userId = callbackQuery.from.username;
+  const username = callbackQuery.from.username || callbackQuery.from.first_name;
+  const data = callbackQuery.data;
+  // Get the current swap request
+  const swapRequest = swapRequests.get(chatId);
+  console.log("swapRequest", swapRequest)
+  if (!swapRequest) {
+    bot.answerCallbackQuery(callbackQuery.id, "No active swap request found.");
+    return;
+  }
+
+  if (data === "approve_swap") {
+    //// Check if this user is part of the swap
+    //if (!swapRequest.users.includes(userId)) {
+    //  bot.answerCallbackQuery(callbackQuery.id, "You're not part of this swap.");
+    //  return;
+    //}
+
+    // Mark this user as approved
+    swapRequest.approvals[username] = true;
+
+    // Check if all users have approved
+    const allApproved = Object.values(swapRequest.approvals).every(approved => approved);
+
+    if (allApproved) {
+      // Execute the swap
+      await bot.sendMessage(chatId, "⏰ Wait for a minute");
+      try {
+        console.log("orderData", swapRequest)
+        const swapData = await formatSwapTransactions(swapRequest["orderData"]);
+        console.log("swapData", swapData)
+        if (!swapData) throw new Error("Failed to format swap data.");
+
+        const txHashes = [];
+        for (const key in swapData) {
+          const { recipientWallet, sendingToken, sendingAmount } = swapData[key];
+          const amount = ethers.utils.parseUnits(sendingAmount.toString(), 6);
+          const tokenContract = new ethers.Contract(sendingToken, erc20Abi, botWallet);
+          const tx = await tokenContract.transfer(recipientWallet, amount);
+          await tx.wait();
+          txHashes.push(`Tx ${key}: ${tx.hash}`);
+        }
+
+        const swapMessage = `✅ Swap Completed!\n\n` + txHashes.join("\n");
+        await bot.sendMessage(chatId, swapMessage);
+        swapRequests.delete(chatId);
+      } catch (error) {
+        console.error('Error executing swap:', error);
+        await bot.sendMessage(chatId, '❌ Error executing swap. Please try again with /swap');
+      }
+    } else {
+      // Let the user know their approval was recorded
+      bot.answerCallbackQuery(callbackQuery.id, "Your approval has been recorded. Waiting for other user.");
+
+      // Update the message to show who has approved
+      const approvedUsers = Object.entries(swapRequest.approvals)
+        .filter(([_, approved]) => approved)
+        .map(([userId, _]) => userId)
+        .length;
+
+      await bot.editMessageText(
+        `Swap approval: ${approvedUsers}/${swapRequest.users.length} users have approved.`,
+        {
+          chat_id: chatId,
+          message_id: msg.message_id,
+          reply_markup: msg.reply_markup
+        }
+      );
+    }
+  } else if (data === "cancel_swap") {
+    // Cancel the swap
+    swapRequests.delete(chatId);
+    await bot.sendMessage(chatId, "Swap cancelled.");
+    bot.answerCallbackQuery(callbackQuery.id, "Swap cancelled.");
+  }
 });
 
 // Add /ok command to execute the order
@@ -216,7 +326,7 @@ bot.onText(/\/ok/, async (msg) => {
   const request = swapRequests.get(chatId);
 
   if (!request) {
-    bot.sendMessage(chatId, 'No active swap request found. Start with /swap command first.');
+    bot.sendMessage(chatId, 'No active orders request found. Start with /myorder command first.');
     return;
   }
 
@@ -224,7 +334,10 @@ bot.onText(/\/ok/, async (msg) => {
   await bot.sendMessage(chatId, waitMessage);
 
   try {
+
+    console.log("orderData", request)
     const swapData = await formatSwapTransactions(request);
+    console.log("swapData", swapData)
     if (!swapData) throw new Error("Failed to format swap data.");
 
     const txHashes = [];
