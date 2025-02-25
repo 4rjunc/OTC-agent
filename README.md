@@ -6,7 +6,7 @@
 
 ## Overview
 
-CROC is a Telegram-based AI Agent built to power secure, trustless OTC trades on Avalanche. When two traders lock in a deal, CROC steps in as the onchain escrow powerhouse**—holding assets tight and only executing swaps when both sides deliver. **Counterparty risk? Gone. Off-exchange trading? Smooth as a crocodile gliding through water.
+[CROC](t.me/CrocAI_bot) is a Telegram-based AI Agent built to power secure, trustless OTC trades on Avalanche. When two traders lock in a deal, CROC steps in as the onchain escrow powerhouse**—holding assets tight and only executing swaps when both sides deliver. **Counterparty risk? Gone. Off-exchange trading? Smooth as a crocodile gliding through water.
 
 ## Capabilities
 
