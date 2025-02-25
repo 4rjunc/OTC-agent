@@ -96,53 +96,40 @@ const SEPOLIA_EURC = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238";
 
 export async function formatSwapTransactions(orderData) {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4-turbo",
-      messages: [
-        {
-          role: "system",
-          content: `You are an AI assistant that formats swap orders into structured transactions for execution.
-          - Given an orderData object, return a JSON object where:
-          - Each key ("1", "2", etc.) represents a transaction.
-          - "recipientWallet" is the wallet address of the user requesting the token.
-          - "sendingToken" is the contract address of the requested token.
-          - "sendingAmount" is the amount of tokens being sent.
-          - Use the following token addresses:
-            - EURC = ${SEPOLIA_EURC}
-            - USDC = ${SEPOLIA_USDC}`
-        },
-        {
-          role: "user",
-          content: `Format the following orderData into structured transactions.
+    // Create an empty result object
+    const result = {};
 
-          Order Data (JSON format):
-          ${JSON.stringify(orderData)}
+    // Map token names to their addresses
+    const tokenAddresses = {
+      "EURC": SEPOLIA_EURC,
+      "USDC": SEPOLIA_USDC
+    };
 
-          Return a JSON response like:
-          {
-            "1": {
-              "recipientWallet": "0x...",
-              "sendingToken": "0x...",
-              "sendingAmount": 1
-            },
-            "2": {
-              "recipientWallet": "0x...",
-              "sendingToken": "0x...",
-              "sendingAmount": 1
-            }
-          }`
-        }
-      ],
-      response_format: { type: "json_object" }
-    });
+    // Counter for transaction numbering
+    let counter = 1;
 
-    return JSON.parse(response.choices[0].message.content);
+    // Process each order in the orderData
+    for (const userId in orderData) {
+      if (Object.prototype.hasOwnProperty.call(orderData, userId)) {
+        const order = orderData[userId];
+
+        // Create a transaction entry
+        result[counter.toString()] = {
+          recipientWallet: order.wallet,
+          sendingToken: tokenAddresses[order.requestedToken],
+          sendingAmount: order.requestedAmount
+        };
+
+        counter++;
+      }
+    }
+
+    return result;
   } catch (error) {
     console.error("Error formatting swap transactions:", error);
     return null;
   }
 }
-
 // Example usage
 async function main() {
   const transactionString = "0x19f3b78038C070030e0Cf4953EDe53aF1f0CB00E I am sending 1 USDC for 1 EURC";
