@@ -12,7 +12,7 @@ const recipientAddress = "0x19f3b78038C070030e0Cf4953EDe53aF1f0CB00E"; // Replac
 const amount = ethers.utils.parseUnits("2", 6); // Replace with the amount to transfer (e.g., 10 tokens with 18 decimals)
 
 const SEPOLIA_USDC = "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4";
-const SEPOLIA_EURC = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
+const SEPOLIA_EURC = "0x1c7d4b196cb0c7b01d743fbc6116a902379c7238";
 
 // ERC-20 Token ABI (simplified)
 const erc20Abi = [
