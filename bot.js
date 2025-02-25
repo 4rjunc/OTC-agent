@@ -220,6 +220,9 @@ bot.onText(/\/ok/, async (msg) => {
     return;
   }
 
+  const waitMessage = ` ⏰ Wait for a minute`;
+  await bot.sendMessage(chatId, waitMessage);
+
   try {
     const swapData = await formatSwapTransactions(request);
     if (!swapData) throw new Error("Failed to format swap data.");
