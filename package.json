@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A Telegram bot for crypto swaps",
   "main": "bot.js",
+  "type": "module",
   "dependencies": {
     "dotenv": "^16.4.7",
     "ethers": "^5.7.2",
