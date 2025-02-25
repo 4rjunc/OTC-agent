@@ -242,7 +242,6 @@ function sendApprovalButtons(chatId, users) {
 bot.on('callback_query', async (callbackQuery) => {
   const msg = callbackQuery.message;
   const chatId = msg.chat.id;
-  const userId = callbackQuery.from.username;
   const username = callbackQuery.from.username || callbackQuery.from.first_name;
   const data = callbackQuery.data;
   // Get the current swap request
@@ -260,6 +259,11 @@ bot.on('callback_query', async (callbackQuery) => {
     //  return;
     //}
 
+    //Checks if user already done the voting
+    if (swapRequest.approvals[username] === true) {
+      bot.answerCallbackQuery(callbackQuery.id, "You've already approved this swap.");
+      return;
+    }
     // Mark this user as approved
     swapRequest.approvals[username] = true;
 
@@ -270,7 +274,6 @@ bot.on('callback_query', async (callbackQuery) => {
       // Execute the swap
       await bot.sendMessage(chatId, "⏰ Wait for a minute");
       try {
-        console.log("orderData", swapRequest)
         const swapData = await formatSwapTransactions(swapRequest["orderData"]);
         console.log("swapData", swapData)
         if (!swapData) throw new Error("Failed to format swap data.");
