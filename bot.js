@@ -1,7 +1,8 @@
-const TelegramBot = require('node-telegram-bot-api');
-const { ethers } = require('ethers');
-require('dotenv').config();
-const { analyzeTransaction } = require('./prompt.js')
+import TelegramBot from 'node-telegram-bot-api';
+import { ethers } from 'ethers';
+import 'dotenv/config'
+import { analyzeTransaction, analyzeWallet, formatSwapTransactions } from './prompt.js';
+import { walletBalances } from './moralis.js';
 
 
 // Initialize bot
@@ -12,6 +13,13 @@ const bot = new TelegramBot(token, { polling: true });
 const RPC = process.env.RPC;
 const provider = new ethers.providers.JsonRpcProvider(RPC);
 let botWallet;
+
+//transfer erc20Abi
+const erc20Abi = [
+  "function transfer(address to, uint256 amount) returns (bool)",
+];
+
+
 
 try {
   botWallet = new ethers.Wallet(process.env.BOT_PRIVATE_KEY, provider);
@@ -44,7 +52,7 @@ bot.onText(/\/start/, (msg) => {
     `/swap wallet1_address wallet2_address - Start a new swap\n` +
     `/myorder user1_address I am sending 1 USDC for 1 EURC - Start a new swap\n` +
     `/info - Check current swap status\n` +
-    `/swapit - Execute the swap when both assets are received\n\n` +
+    `/ok - Execute the order when both assets are received\n\n` +
     `Bot wallet address: ${botWallet.address}`;
 
   bot.sendMessage(chatId, welcomeMessage);
@@ -91,8 +99,9 @@ bot.onText(/\/myorder (.+)/, async (msg, match) => {
 
   console.log(`Created swap request for chat ${chatId}:`, swapRequests.get(chatId));
 
+
   const message = `🔄 *Order Request Initialized!*\n\n` +
-    `👤 *User:* [${username}](tg://user?id=${userId})\n` +  // Clickable mention
+    `👤 *User:* ${username}\n` +
     `💼 *Wallet:* ${orderJSON.wallet}\n\n` +
     `📤 *Sending:* ${orderJSON.sendingAmount} ${orderJSON.sendingToken}\n` +
     `📥 *Requesting:* ${orderJSON.requestedAmount} ${orderJSON.requestedToken}\n\n` +
@@ -100,7 +109,6 @@ bot.onText(/\/myorder (.+)/, async (msg, match) => {
     `📍 ${botWallet.address}\n\n` +
     `⏳ *The bot will monitor for incoming transactions and confirm once both parties have sent their assets.*`;
 
-  bot.sendMessage(chatId, message, { parse_mode: "MarkdownV2" });
   bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
 
 });
@@ -149,16 +157,18 @@ bot.onText(/\/swap (.+)/, async (msg, match) => {
     }
   });
 
-  console.log(`Created swap request for chat ${chatId}:`, swapRequests.get(chatId));
+  //console.log(`Created swap request for chat ${chatId}:`, swapRequests.get(chatId));
+  const message = `🔄 *Order Request Initialized!*\n\n` +
+    `👤 *User:* ${username}\n` +
+    `💼 *Wallet:* ${orderJSON.wallet}\n\n` +
+    `📤 *Sending:* ${orderJSON.sendingAmount} ${orderJSON.sendingToken}\n` +
+    `📥 *Requesting:* ${orderJSON.requestedAmount} ${orderJSON.requestedToken}\n\n` +
+    `⚡ *Please send your assets to the bot wallet:*\n` +
+    `📍 ${botWallet.address}\n\n` +
+    `⏳ *The bot will monitor for incoming transactions and confirm once both parties have sent their assets.*`;
 
-  const message = `Swap request initialized!\n\n` +
-    `Wallet 1: ${addresses[0]}\n` +
-    `Wallet 2: ${addresses[1]}\n\n` +
-    `Please send your assets to the bot wallet:\n` +
-    `${botWallet.address}\n\n` +
-    `The bot will monitor for incoming transactions.`;
+  bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
 
-  bot.sendMessage(chatId, message);
 });
 
 // Listen for incoming transactions
@@ -170,23 +180,6 @@ provider.on('block', async (blockNumber) => {
     for (const tx of block.transactions) {
       if (tx.to?.toLowerCase() === botWallet.address.toLowerCase()) {
         console.log(`Received transaction in block ${blockNumber}:`, tx.hash);
-
-        // Process the transaction
-        for (const [chatId, request] of swapRequests.entries()) {
-          if (tx.from.toLowerCase() === request.wallet1.toLowerCase()) {
-            request.assets.wallet1 = {
-              amount: tx.value,
-              txHash: tx.hash
-            };
-            await handleAssetReceived(chatId, 'wallet1', tx);
-          } else if (tx.from.toLowerCase() === request.wallet2.toLowerCase()) {
-            request.assets.wallet2 = {
-              amount: tx.value,
-              txHash: tx.hash
-            };
-            await handleAssetReceived(chatId, 'wallet2', tx);
-          }
-        }
       }
     }
   } catch (error) {
@@ -197,62 +190,28 @@ provider.on('block', async (blockNumber) => {
 // Add /info command to show received assets
 bot.onText(/\/info/, async (msg) => {
   const chatId = msg.chat.id;
-  const request = swapRequests.get(chatId);
+  const orderData = swapRequests.get(chatId);
 
-  if (!request) {
-    bot.sendMessage(chatId, 'No active swap request found. Start with /swap command first.');
+  if (!orderData) {
+    bot.sendMessage(chatId, 'No active order request found. Start with /myorder command first.');
     return;
   }
 
-  const wallet1Assets = request.assets.wallet1
-    ? `${ethers.utils.formatEther(request.assets.wallet1.amount)} AVAX\nTx: ${request.assets.wallet1.txHash}`
-    : 'No assets received yet';
+  // Moralis api call 
+  // FIX: reuturns empy array
+  //const walletBalances = await getWalletTokenBalance(botWallet.address)
+  const infoReport = await analyzeWallet(orderData, walletBalances);
 
-  const wallet2Assets = request.assets.wallet2
-    ? `${ethers.utils.formatEther(request.assets.wallet2.amount)} AVAX\nTx: ${request.assets.wallet2.txHash}`
-    : 'No assets received yet';
+  console.log("infoReport", infoReport)
 
-  const message = `Current Swap Status:\n\n` +
-    `Wallet 1 (${request.wallet1}):\n${wallet1Assets}\n\n` +
-    `Wallet 2 (${request.wallet2}):\n${wallet2Assets}\n\n` +
-    `Bot wallet: ${botWallet.address}`;
+  const message = `Order Status: ${infoReport ? "✅ Valid" : "❌ Invalid"}`
 
-  bot.sendMessage(chatId, message);
+  bot.sendMessage(chatId, message); bot.sendMessage(chatId, message);
 });
 
-// Modify handleAssetReceived function
-async function handleAssetReceived(chatId, walletType, tx) {
-  try {
-    const request = swapRequests.get(chatId);
-    const amount = ethers.utils.formatEther(tx.value);
-
-    console.log(`Processing received asset from ${walletType}:`, {
-      amount,
-      txHash: tx.hash
-    });
-
-    const assetMessage = `Received Asset Details:\n\n` +
-      `From: ${walletType === 'wallet1' ? 'Wallet 1' : 'Wallet 2'}\n` +
-      `Amount: ${amount} AVAX\n` +
-      `Transaction: ${tx.hash}\n` +
-      `\nUse /info to see all received assets`;
-
-    await bot.sendMessage(chatId, assetMessage);
-
-    // Check if both assets received
-    if (request.assets.wallet1 && request.assets.wallet2) {
-      await bot.sendMessage(
-        chatId,
-        'Both assets received!\nUse /swapit to execute the swap.'
-      );
-    }
-  } catch (error) {
-    console.error('Error handling received asset:', error);
-  }
-}
-
-// Add /swapit command to execute the swap
-bot.onText(/\/swapit/, async (msg) => {
+// Add /ok command to execute the order
+bot.onText(/\/ok/, async (msg) => {
+  // TODO: Only execute if both users agree
   const chatId = msg.chat.id;
   const request = swapRequests.get(chatId);
 
@@ -261,48 +220,29 @@ bot.onText(/\/swapit/, async (msg) => {
     return;
   }
 
-  if (!request.assets.wallet1 || !request.assets.wallet2) {
-    bot.sendMessage(chatId, 'Cannot execute swap. Waiting for assets from both wallets.\nUse /info to check status.');
-    return;
-  }
-
-  console.log(`Executing swap for chat ${chatId}`);
   try {
-    // Send assets to respective wallets
-    const tx1 = await botWallet.sendTransaction({
-      to: request.wallet2,
-      value: request.assets.wallet1.amount,
-      gasLimit: 21000
-    });
+    const swapData = await formatSwapTransactions(request);
+    if (!swapData) throw new Error("Failed to format swap data.");
 
-    const tx2 = await botWallet.sendTransaction({
-      to: request.wallet1,
-      value: request.assets.wallet2.amount,
-      gasLimit: 21000
-    });
+    const txHashes = [];
 
-    console.log('Swap transactions sent:', {
-      tx1: tx1.hash,
-      tx2: tx2.hash
-    });
+    for (const key in swapData) {
+      const { recipientWallet, sendingToken, sendingAmount } = swapData[key];
 
-    const swapMessage = `Swap completed!\n\n` +
-      `${ethers.utils.formatEther(request.assets.wallet1.amount)} AVAX sent to Wallet 2\n` +
-      `Transaction: ${tx1.hash}\n\n` +
-      `${ethers.utils.formatEther(request.assets.wallet2.amount)} AVAX sent to Wallet 1\n` +
-      `Transaction: ${tx2.hash}`;
+      const amount = ethers.utils.parseUnits(sendingAmount.toString(), 6);
+      const tokenContract = new ethers.Contract(sendingToken, erc20Abi, botWallet);
 
+      const tx = await tokenContract.transfer(recipientWallet, amount);
+      await tx.wait();
+      txHashes.push(`Tx ${key}: ${tx.hash}`);
+    }
+
+    const swapMessage = `✅ Swap Completed!\n\n` + txHashes.join("\n");
     await bot.sendMessage(chatId, swapMessage);
-
-    // Clear the swap request
     swapRequests.delete(chatId);
-
   } catch (error) {
     console.error('Error executing swap:', error);
-    await bot.sendMessage(
-      chatId,
-      'Error executing swap. Please try again with /swapit'
-    );
+    await bot.sendMessage(chatId, '❌ Error executing swap. Please try again with /swapit');
   }
 });
 
@@ -314,4 +254,5 @@ bot.on('error', (error) => {
 // Startup message
 console.log('Bot started on Avalanche Fuji testnet...');
 console.log('Bot wallet address:', botWallet.address);
-console.log('Monitoring for incoming transactions...'); 
+console.log('Monitoring for incoming transactions...');
+
