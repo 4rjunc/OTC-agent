@@ -11,11 +11,33 @@ async function getWalletTokenBalance(walletAddress) {
       "address": walletAddress
     });
     console.log(response);
-    return response.raw;
+    return response;
   } catch (e) {
     console.error(e);
   }
 }
+
+async function verifyTransfer(walletAddress) {
+  try {
+    await Moralis.start({
+      apiKey: process.env.MORALIS_API_KEY
+    });
+
+    const response = await Moralis.EvmApi.nft.getWalletNFTTransfers({
+      "chain": "0xaa36a7",
+      "format": "decimal",
+      "order": "DESC",
+      "address": walletAddress
+    });
+    console.log(JSON.parse(response.raw, null, 2));
+  } catch (e) {
+    console.error(e);
+  }
+}
+(async () => {
+  await getWalletTokenBalance("0x19f3b78038C070030e0Cf4953EDe53aF1f0CB00E");
+})();
+
 
 // Using an immediately invoked async function
 //(async () => {
